@@ -79,3 +79,36 @@ class Swipe(models.Model):
     def __str__(self):
         action = "Liked" if self.liked else "Passed"
         return f"{self.swiper.name} {action} {self.swiped.name}"
+
+# Modelo Match registra quando dois pets deram like mútuo
+class Match(models.Model):
+    pet1 = models.ForeignKey(Pet, on_delete=models.CASCADE, related_name='matches_as_pet1')
+    pet2 = models.ForeignKey(Pet, on_delete=models.CASCADE, related_name='matches_as_pet2')
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        # Garante que não haja matches duplicados
+        unique_together = ['pet1', 'pet2']
+    
+    def __str__(self):
+        return f"Match entre {self.pet1.name} e {self.pet2.name}"
+    
+# Modelo Message registra as mensagens trocadas entre donos de pets que deram match
+class Message(models.Model):
+    # O match ao qual esta mensagem pertence
+    match = models.ForeignKey(Match, on_delete=models.CASCADE, related_name='messages')
+    # O dono que enviou a mensagem
+    sender = models.ForeignKey(Owner, on_delete=models.CASCADE, related_name='messages_sent')
+    # Conteúdo da mensagem
+    content = models.TextField()
+    # Data e hora do envio (preenchido automaticamente)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    # Indica se a mensagem foi lida pelo destinatário
+    is_read = models.BooleanField(default=False)
+    
+    class Meta:
+        # Ordena mensagens por ordem cronológica (mais antigas primeiro)
+        ordering = ['timestamp']
+    
+    def __str__(self):
+        return f"{self.sender.user.username}: {self.content[:50]}"

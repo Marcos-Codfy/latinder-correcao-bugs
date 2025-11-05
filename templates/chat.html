@@ -1,0 +1,288 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<style>
+    /* Estilo do container de chat */
+    .chat-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    
+    /* Cabeçalho do chat */
+    .chat-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 15px 15px 0 0;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    .chat-header img {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid white;
+    }
+    
+    /* Área de mensagens */
+    .messages-area {
+        background: white;
+        height: 500px;
+        overflow-y: auto;
+        padding: 20px;
+        border-left: 1px solid #dee2e6;
+        border-right: 1px solid #dee2e6;
+    }
+    
+    /* Estilo das mensagens */
+    .message {
+        margin-bottom: 15px;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .message.mine {
+        align-items: flex-end;
+    }
+    
+    .message.theirs {
+        align-items: flex-start;
+    }
+    
+    .message-bubble {
+        max-width: 70%;
+        padding: 10px 15px;
+        border-radius: 18px;
+        word-wrap: break-word;
+    }
+    
+    .message.mine .message-bubble {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-bottom-right-radius: 4px;
+    }
+    
+    .message.theirs .message-bubble {
+        background: #e9ecef;
+        color: #333;
+        border-bottom-left-radius: 4px;
+    }
+    
+    .message-time {
+        font-size: 0.75rem;
+        color: #6c757d;
+        margin-top: 4px;
+        padding: 0 5px;
+    }
+    
+    /* Formulário de envio */
+    .chat-input-area {
+        background: white;
+        padding: 20px;
+        border: 1px solid #dee2e6;
+        border-radius: 0 0 15px 15px;
+    }
+    
+    .chat-input-area form {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .chat-input-area input {
+        flex: 1;
+        border-radius: 25px;
+        border: 1px solid #dee2e6;
+        padding: 10px 20px;
+    }
+    
+    .chat-input-area button {
+        border-radius: 25px;
+        padding: 10px 25px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+    }
+    
+    .chat-input-area button:hover {
+        opacity: 0.9;
+        transform: scale(1.02);
+    }
+    
+    /* Scroll suave */
+    .messages-area {
+        scroll-behavior: smooth;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="chat-container">
+    
+    <!-- Cabeçalho do Chat -->
+    <div class="chat-header">
+        {% with other_pet.petphoto_set.first as first_photo %}
+            {% if first_photo %}
+                <img src="{{ first_photo.image.url }}" alt="{{ other_pet.name }}">
+            {% else %}
+                <div style="width: 50px; height: 50px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                    🐾
+                </div>
+            {% endif %}
+        {% endwith %}
+        <div>
+            <h5 class="mb-0">{{ other_pet.name }}</h5>
+            <small>{{ other_pet.owner.user.get_full_name|default:other_pet.owner.user.username }}</small>
+        </div>
+    </div>
+    
+    <!-- Área de Mensagens -->
+    <div class="messages-area" 
+         id="messagesArea" 
+         data-last-message-id="{% if messages %}{{ messages.last.id }}{% else %}0{% endif %}">
+        {% for message in messages %}
+            <div class="message {% if message.sender == request.user.owner %}mine{% else %}theirs{% endif %}" 
+                 data-message-id="{{ message.id }}">
+                <div class="message-bubble">
+                    {{ message.content }}
+                </div>
+                <div class="message-time">
+                    {{ message.timestamp|date:"H:i" }}
+                </div>
+            </div>
+        {% empty %}
+            <div class="text-center text-muted mt-5">
+                <p>Nenhuma mensagem ainda. Comece a conversa! 💬</p>
+            </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Formulário de Envio -->
+    <div class="chat-input-area">
+        <form id="messageForm">
+            {% csrf_token %}
+            <input type="hidden" id="matchId" value="{{ match.id }}">
+            <input type="text" 
+                   id="messageInput" 
+                   placeholder="Digite sua mensagem..." 
+                   required 
+                   autocomplete="off">
+            <button type="submit">Enviar</button>
+        </form>
+    </div>
+    
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Configuração inicial
+    const messagesArea = document.getElementById('messagesArea');
+    const messageForm = document.getElementById('messageForm');
+    const messageInput = document.getElementById('messageInput');
+    const matchId = document.getElementById('matchId').value;
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    
+    // ID da última mensagem carregada (para polling)
+    let lastMessageId = parseInt(messagesArea.dataset.lastMessageId) || 0;
+    
+    // Função para rolar para o final do chat
+    function scrollToBottom() {
+        messagesArea.scrollTop = messagesArea.scrollHeight;
+    }
+    
+    // Rola para o final ao carregar a página
+    scrollToBottom();
+    
+    // Função para adicionar uma mensagem na tela
+    function addMessageToScreen(messageData) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${messageData.is_mine ? 'mine' : 'theirs'}`;
+        messageDiv.setAttribute('data-message-id', messageData.id);
+        
+        messageDiv.innerHTML = `
+            <div class="message-bubble">
+                ${messageData.content}
+            </div>
+            <div class="message-time">
+                ${messageData.timestamp}
+            </div>
+        `;
+        
+        messagesArea.appendChild(messageDiv);
+        scrollToBottom();
+        
+        // Atualiza o ID da última mensagem
+        lastMessageId = messageData.id;
+    }
+    
+    // Função para enviar mensagem (AJAX)
+    messageForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const content = messageInput.value.trim();
+        if (!content) return;
+        
+        // Desabilita input durante o envio
+        messageInput.disabled = true;
+        
+        // Envia mensagem para o backend
+        fetch('/api/send-message/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                match_id: matchId,
+                content: content
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Adiciona mensagem na tela
+                addMessageToScreen(data.message);
+                
+                // Limpa o campo de input
+                messageInput.value = '';
+            } else {
+                alert('Erro ao enviar mensagem: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            alert('Erro ao enviar mensagem');
+        })
+        .finally(() => {
+            // Reabilita input
+            messageInput.disabled = false;
+            messageInput.focus();
+        });
+    });
+    
+    // Função para buscar novas mensagens (Polling)
+    function fetchNewMessages() {
+        fetch(`/api/get-messages/?match_id=${matchId}&last_message_id=${lastMessageId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success' && data.messages.length > 0) {
+                    // Adiciona cada mensagem nova na tela
+                    data.messages.forEach(message => {
+                        addMessageToScreen(message);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao buscar mensagens:', error);
+            });
+    }
+    
+    // Inicia o polling: busca novas mensagens a cada 5 segundos
+    setInterval(fetchNewMessages, 5000);
+</script>
+{% endblock %}

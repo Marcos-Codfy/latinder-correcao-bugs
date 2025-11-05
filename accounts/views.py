@@ -18,6 +18,13 @@ from .models import Pet, Owner, PetPhoto, Swipe
 # Importações dos nossos Forms e Models
 from .forms import PetForm, PetPhotoForm, OwnerProfileForm
 from .models import Pet, Owner, PetPhoto
+from .models import Pet, Owner, PetPhoto, Swipe, Match
+from django.db import models
+#-------------------------------- Sprint 4 ----------------------------------#
+from django.shortcuts import get_object_or_404
+from .models import Pet, Owner, PetPhoto, Swipe, Match, Message
+from django.db.models import Q
+#-------------------------------------------------------------------------#
 # --- Nossas Views ---
 # View para cadastro de novos usuários
 class SignUpView(CreateView):
@@ -133,7 +140,7 @@ class SwipeView(LoginRequiredMixin, ListView):
 # Ela responde com um JSON indicando sucesso ou falha
 # Essa view é chamada pelo JavaScript na página de swipe
 class ProcessSwipeView(LoginRequiredMixin, View):
-    # Processa o POST enviado pelo JavaScript com os dados do swipe
+    """View para processar swipes e detectar matches"""
     def post(self, request, *args, **kwargs):
         try:
             # Pega o pet do usuário logado
@@ -156,9 +163,206 @@ class ProcessSwipeView(LoginRequiredMixin, View):
                 liked=liked
             )
             
-            # Responde ao JavaScript com uma mensagem de sucesso
-            return JsonResponse({'status': 'success'})
+            # Verifica se houve match (apenas se foi um like)
+            match_occurred = False
+            if liked:
+                # Verifica se o outro pet também deu like
+                reciprocal_like = Swipe.objects.filter(
+                    swiper=swiped_pet,
+                    swiped=swiper_pet,
+                    liked=True
+                ).exists()
+                
+                if reciprocal_like:
+                    # Cria o match (garante ordem consistente dos IDs para evitar duplicatas)
+                    pet1, pet2 = sorted([swiper_pet.id, swiped_pet.id])
+                    Match.objects.get_or_create(
+                        pet1_id=pet1,
+                        pet2_id=pet2
+                    )
+                    match_occurred = True
+            
+            # Responde ao JavaScript com informação sobre o match
+            return JsonResponse({
+                'status': 'success',
+                'match': match_occurred
+            })
 
         except Exception as e:
-            # Em caso de qualquer erro, responde com uma mensagem de erro
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+class MatchesView(LoginRequiredMixin, TemplateView):
+    """View para exibir a lista de matches do usuário"""
+    template_name = 'matches.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Pega o pet do usuário logado
+        try:
+            user_pet = self.request.user.owner.pet_set.first()
+        except (Owner.DoesNotExist, AttributeError):
+            context['matches'] = []
+            return context
+        
+        if not user_pet:
+            context['matches'] = []
+            return context
+        
+        # Busca todos os matches do pet do usuário
+        matches = Match.objects.filter(
+            models.Q(pet1=user_pet) | models.Q(pet2=user_pet)
+        ).select_related('pet1', 'pet2', 'pet1__owner__user', 'pet2__owner__user')
+        
+        # Cria lista com informações dos pets combinados
+        matched_pets = []
+        for match in matches:
+            # Pega o outro pet do match
+            other_pet = match.pet2 if match.pet1 == user_pet else match.pet1
+            matched_pets.append({
+                'match': match,  # ADICIONADO: objeto match completo
+                'pet': other_pet,
+                'match_date': match.created_at
+            })
+        
+        context['matches'] = matched_pets
+        return context
+    
+ #View para exibir a página de chat de um match específico
+class ChatView(LoginRequiredMixin, DetailView):
+    """Exibe a interface de chat para um match específico"""
+    model = Match
+    template_name = 'chat.html'
+    context_object_name = 'match'
+    
+    def get_queryset(self):
+        # Garante que o usuário só acesse chats dos seus próprios matches
+        user_pet = self.request.user.owner.pet_set.first()
+        return Match.objects.filter(
+            Q(pet1=user_pet) | Q(pet2=user_pet)
+        )
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        match = self.get_object()
+        
+        # Identifica qual é o outro pet no match
+        user_pet = self.request.user.owner.pet_set.first()
+        other_pet = match.pet2 if match.pet1 == user_pet else match.pet1
+        context['other_pet'] = other_pet
+        
+        # Carrega o histórico de mensagens do match
+        context['messages'] = match.messages.all()
+        
+        # Marca mensagens recebidas como lidas
+        match.messages.exclude(
+            sender=self.request.user.owner
+        ).update(is_read=True)
+        
+        return context
+
+
+# View para enviar uma nova mensagem via AJAX
+class SendMessageView(LoginRequiredMixin, View):
+    """Recebe e salva uma nova mensagem no banco de dados"""
+    
+    def post(self, request, *args, **kwargs):
+        try:
+            # Pega os dados enviados pelo JavaScript
+            data = json.loads(request.body)
+            match_id = data.get('match_id')
+            content = data.get('content', '').strip()
+            
+            # Validação básica
+            if not content:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'Mensagem vazia'
+                }, status=400)
+            
+            # Busca o match e valida permissões
+            match = get_object_or_404(Match, id=match_id)
+            user_pet = request.user.owner.pet_set.first()
+            
+            # Verifica se o usuário faz parte deste match
+            if match.pet1 != user_pet and match.pet2 != user_pet:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'Acesso negado'
+                }, status=403)
+            
+            # Cria a mensagem
+            message = Message.objects.create(
+                match=match,
+                sender=request.user.owner,
+                content=content
+            )
+            
+            # Retorna os dados da mensagem criada
+            return JsonResponse({
+                'status': 'success',
+                'message': {
+                    'id': message.id,
+                    'content': message.content,
+                    'sender': message.sender.user.username,
+                    'timestamp': message.timestamp.strftime('%H:%M'),
+                    'is_mine': True
+                }
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'status': 'error',
+                'message': str(e)
+            }, status=400)
+
+
+# View (API endpoint) para buscar novas mensagens via polling
+class GetNewMessagesView(LoginRequiredMixin, View):
+    """Retorna mensagens novas de um chat (para polling do frontend)"""
+    
+    def get(self, request, *args, **kwargs):
+        try:
+            match_id = request.GET.get('match_id')
+            last_message_id = request.GET.get('last_message_id', 0)
+            
+            # Busca o match
+            match = get_object_or_404(Match, id=match_id)
+            user_pet = request.user.owner.pet_set.first()
+            
+            # Verifica permissões
+            if match.pet1 != user_pet and match.pet2 != user_pet:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'Acesso negado'
+                }, status=403)
+            
+            # Busca mensagens novas (ID maior que o último conhecido)
+            new_messages = match.messages.filter(
+                id__gt=last_message_id
+            ).select_related('sender__user')
+            
+            # Marca mensagens recebidas como lidas
+            new_messages.exclude(
+                sender=request.user.owner
+            ).update(is_read=True)
+            
+            # Formata as mensagens para JSON
+            messages_data = [{
+                'id': msg.id,
+                'content': msg.content,
+                'sender': msg.sender.user.username,
+                'timestamp': msg.timestamp.strftime('%H:%M'),
+                'is_mine': msg.sender == request.user.owner
+            } for msg in new_messages]
+            
+            return JsonResponse({
+                'status': 'success',
+                'messages': messages_data
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'status': 'error',
+                'message': str(e)
+            }, status=400)

@@ -125,6 +125,9 @@ LOGIN_REDIRECT_URL = 'home'
 # Para onde ir após o logout
 LOGOUT_REDIRECT_URL = 'login'
 
+# URL para onde o Django redireciona usuários não autenticados
+LOGIN_URL = '/login/'
+
 # Configuração para arquivos de mídia (uploads dos usuários)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
