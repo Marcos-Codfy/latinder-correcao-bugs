@@ -25,6 +25,10 @@ from django.shortcuts import get_object_or_404
 from .models import Pet, Owner, PetPhoto, Swipe, Match, Message
 from django.db.models import Q
 #-------------------------------------------------------------------------#
+
+# ****** ADICIONE ESTA IMPORTAÇÃO ******
+from django.shortcuts import redirect
+
 # --- Nossas Views ---
 # View para cadastro de novos usuários
 class SignUpView(CreateView):
@@ -42,8 +46,19 @@ class SignUpView(CreateView):
         Owner.objects.create(user=self.object)
         return response
 
+# ****** VIEW MODIFICADA (MELHORIA DE FLUXO 1) ******
 class HomeView(LoginRequiredMixin, TemplateView):
     template_name = 'home.html'
+
+    def get(self, request, *args, **kwargs):
+        # Verifica se o dono já preencheu a data de nascimento
+        # Se não preencheu, é um novo cadastro.
+        if not request.user.owner.birth_date:
+            # Redireciona direto para a página de edição do perfil
+            return redirect('owner_edit')
+        
+        # Se já preencheu, continua e mostra a home.html
+        return super().get(self, request, *args, **kwargs)
 
 class PetCreateView(LoginRequiredMixin, CreateView):
     model = Pet
@@ -57,6 +72,7 @@ class PetCreateView(LoginRequiredMixin, CreateView):
     def get_success_url(self):
         return reverse_lazy('pet_detail', kwargs={'pk': self.object.pk})
     
+# ****** VIEW MODIFICADA (MELHORIA DE FLUXO 3) ******
 class PetDetailView(DetailView):
     model = Pet
     template_name = 'pet_detail.html'
@@ -73,7 +89,8 @@ class PetDetailView(DetailView):
             photo = form.save(commit=False)
             photo.pet = self.object
             photo.save()
-            return HttpResponseRedirect(self.request.path_info)
+            # Envia o usuário direto para a diversão!
+            return HttpResponseRedirect(reverse_lazy('swipe'))
         else:
             context = self.get_context_data()
             context['photo_form'] = form
@@ -83,13 +100,15 @@ class OwnerDetailView(LoginRequiredMixin, DetailView):
     model = Owner
     template_name = 'owner_detail.html'
 
+# ****** VIEW MODIFICADA (MELHORIA DE FLUXO 2) ******
 class OwnerUpdateView(LoginRequiredMixin, UpdateView):
     model = Owner
     form_class = OwnerProfileForm
     template_name = 'owner_form.html'
     # Após salvar, redireciona para a página de detalhes do Owner
     def get_success_url(self):
-        return reverse_lazy('owner_detail', kwargs={'pk': self.object.pk})
+        # Envia o usuário direto para cadastrar o pet
+        return reverse_lazy('pet_add')
     # Garante que o usuário só possa editar seu próprio perfil
     def get_object(self, queryset=None):
         return self.request.user.owner
