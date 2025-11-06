@@ -76,14 +76,36 @@ class PetCreateView(LoginRequiredMixin, CreateView):
 class PetDetailView(DetailView):
     model = Pet
     template_name = 'pet_detail.html'
-    # Adiciona o formulário de upload de fotos ao contexto
+
+    # Adiciona o formulário de upload de fotos E a lógica de permissão ao contexto
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['photo_form'] = PetPhotoForm()
+        
+        # Checa se o pet pertence ao usuário logado
+        is_mine = False
+        if self.request.user.is_authenticated:
+            is_mine = (self.object.owner == self.request.user.owner)
+        
+        context['is_mine'] = is_mine
+        
+        # Adiciona o formulário de upload de fotos SOMENTE se o pet for meu
+        if is_mine:
+            context['photo_form'] = PetPhotoForm()
+        
+        # Adiciona o dono do pet ao contexto (para exibir o perfil público)
+        context['pet_owner'] = self.object.owner
+        
         return context
+
     # Processa o upload de fotos via POST
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
+        
+        # Checagem de segurança: Só o dono pode postar fotos
+        if self.object.owner != self.request.user.owner:
+            # Se um não-dono tentar postar, apenas recarregue a página
+            return HttpResponseRedirect(self.request.path_info) 
+            
         form = PetPhotoForm(request.POST, request.FILES)
         if form.is_valid():
             photo = form.save(commit=False)

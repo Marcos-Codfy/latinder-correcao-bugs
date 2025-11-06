@@ -5,14 +5,38 @@
 <div class="row justify-content-center">
     <div class="col-md-10 col-lg-8">
 
+        {% if not is_mine %}
+        <div class="glass-card mb-4">
+            <h4 class="mb-3">Dono(a) do {{ pet.name }}</h4>
+            <div class="d-flex align-items-center">
+                {% if pet_owner.profile_picture %}
+                    <img src="{{ pet_owner.profile_picture.url }}" alt="Foto de {{ pet_owner.user.get_full_name }}" class="rounded-circle me-3" style="width: 80px; height: 80px; object-fit: cover;">
+                {% endif %}
+                <div>
+                    <h5 class="mb-0">{{ pet_owner.user.get_full_name|default:pet_owner.user.username }}</h5>
+                    <span class="text-muted">@{{ pet_owner.user.username }}</span>
+                </div>
+            </div>
+            
+            {% if pet_owner.bio %}
+                <p class="mt-3">{{ pet_owner.bio }}</p>
+            {% else %}
+                <p class="text-muted mt-3">Nenhuma biografia adicionada ainda.</p>
+            {% endif %}
+        </div>
+        {% endif %}
         <div class="glass-card">
             
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <div class="d-flex align-items-center">
                     <h2 class="me-3 mb-0">{{ pet.name }}</h2>
-                    <a href="{% url 'pet_edit' pk=pet.pk %}" class="btn btn-sm btn-primary">Editar Perfil</a>
+                    
+                    {% if is_mine %}
+                        <a href="{% url 'pet_edit' pk=pet.pk %}" class="btn btn-sm btn-primary">Editar Perfil</a>
+                    {% endif %}
                 </div>
             </div>
+            
             <p class="text-body-secondary">{{ pet.breed }} | {{ pet.age }} anos</p>
             <p>{{ pet.bio }}</p>
 
@@ -29,15 +53,18 @@
                 {% endfor %}
             </div>
 
-            <hr class="my-4">
+            {% if is_mine %}
+                <hr class="my-4">
 
-            <h4 class="mb-3">Adicionar Nova Foto</h4>
-            <form method="post" enctype="multipart/form-data">
-                {% csrf_token %}
-                {{ photo_form|crispy }}
-                <button type="submit" class="btn btn-primary mt-2">Enviar Foto</button>
-            </form>
+                <h4 class="mb-3">Adicionar Nova Foto</h4>
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    {{ photo_form|crispy }}
+                    <button type"submit" class="btn btn-primary mt-2">Enviar Foto</button>
+                </form>
+            {% endif %}
 
-        </div></div>
+        </div>
+    </div>
 </div>
 {% endblock %}
