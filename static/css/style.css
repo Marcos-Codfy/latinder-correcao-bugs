@@ -16,7 +16,7 @@ body::before {
     z-index: -1; /* Coloca atrás de todo o conteúdo */
 
     /* Sua imagem de fundo */
-    background-image: url('../images/background.png');
+    background-image: url('../images/background.jpg');
     background-size: cover;
     background-position: center;
 
