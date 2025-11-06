@@ -76,6 +76,11 @@
             justify-content: center;
             gap: 20px;
             margin-top: -120px;
+
+            /* ****** CORREÇÃO DO Z-INDEX ****** */
+            /* Isso coloca os botões NA FRENTE dos cards */
+            position: relative;
+            z-index: 11;
         }
         
         .btn-swipe {
@@ -153,7 +158,7 @@
                 </div>
             </div>
             
-            <div class="swipe-buttons">
+            <div class="swipe-buttons" id="swipeButtons">
                 <button class="btn-swipe btn-nope" id="btnNope">X</button>
                 <button class="btn-swipe btn-like" id="btnLike">🤍</button>
             </div>
@@ -181,6 +186,8 @@
             const cardStack = document.getElementById('cardStack');
             const endMessage = document.getElementById('endMessage');
             let cards = Array.from(document.querySelectorAll('.pet-card'));
+            
+            const swipeButtons = document.getElementById('swipeButtons');
             
             // ----------------------------------------------------
             // FUNÇÕES DE AÇÃO
@@ -229,8 +236,11 @@
                     if (cards.length === 0) {
                         cardStack.style.display = 'none';
                         endMessage.style.display = 'block';
+                        
+                        if (swipeButtons) swipeButtons.style.display = 'none'; 
+                        
                     } else {
-                        // **CORREÇÃO:** Prepara o próximo card para "arrastar"
+                        // Prepara o próximo card para "arrastar"
                         setupHammer(cards[0]); 
                     }
                 }, 500);
@@ -238,10 +248,9 @@
 
             // Função de 'arrastar' (Hammer.js)
             function setupHammer(card) {
-                // Verifica se a biblioteca Hammer foi carregada
                 if (typeof Hammer === 'undefined') {
                     console.warn("Hammer.js não foi carregado. A funcionalidade de 'arrastar' está desabilitada.");
-                    return; // Não faz nada se a biblioteca falhou
+                    return; 
                 }
 
                 if (!card) return; 
@@ -295,7 +304,7 @@
             // INICIALIZAÇÃO
             // ----------------------------------------------------
 
-            // **CORREÇÃO:** Ativa os botões primeiro, para garantir que funcionem
+            // Ativa os botões primeiro
             document.getElementById('btnLike')?.addEventListener('click', function() {
                 const topCard = cards[0];
                 if (topCard) {
