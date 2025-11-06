@@ -76,10 +76,20 @@ class OwnerUpdateView(LoginRequiredMixin, UpdateView):
     model = Owner
     form_class = OwnerProfileForm
     template_name = 'owner_form.html'
-    
+
+    # ****** ESTA É A CORREÇÃO (2/2) ******
+    # Esta função agora é "inteligente"
     def get_success_url(self):
-        return reverse_lazy('pet_add')
-    
+        # self.object é o 'Owner' que acabamos de salvar.
+        # Verificamos se ele já tem algum pet cadastrado.
+        if self.object.pet_set.all().exists():
+            # Se JÁ TEM pet, volte para a página de perfil do dono.
+            return reverse_lazy('owner_detail', kwargs={'pk': self.object.pk})
+        else:
+            # Se NÃO TEM pet (onboarding), continue para a página 'pet_add'.
+            return reverse_lazy('pet_add')
+
+    # Garante que o usuário só possa editar seu próprio perfil
     def get_object(self, queryset=None):
         return self.request.user.owner
     

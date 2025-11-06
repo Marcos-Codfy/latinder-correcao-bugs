@@ -3,6 +3,8 @@
 from django import forms
 from django.contrib.auth.models import User
 from .models import Owner, Pet, PetPhoto
+from django.core.exceptions import ValidationError
+from datetime import date
 
 # Formulário para criar e editar um Pet
 class PetForm(forms.ModelForm):
@@ -14,6 +16,13 @@ class PetForm(forms.ModelForm):
                 attrs={'type': 'date'},
             ),
         }
+    
+    # Validação para não aceitar data futura
+    def clean_birth_date(self):
+        birth_date = self.cleaned_data.get('birth_date')
+        if birth_date and birth_date > date.today():
+            raise ValidationError("A data de nascimento não pode ser no futuro!")
+        return birth_date
 
 # Formulário para fazer upload de fotos de um Pet
 class PetPhotoForm(forms.ModelForm):
@@ -33,6 +42,10 @@ class OwnerProfileForm(forms.ModelForm):
         fields = ['profile_picture', 'first_name', 'last_name', 'bio', 'birth_date', 'state', 'city']
         widgets = {
             'birth_date': forms.DateInput(attrs={'type': 'date'}),
+            
+            # ****** ESTA É A CORREÇÃO (1/2) ******
+            # Isso força o uso do widget de arquivo simples, removendo o "Clear"
+            'profile_picture': forms.FileInput(),
         }
 
     # Método para inicializar o formulário com dados existentes do User
@@ -57,3 +70,10 @@ class OwnerProfileForm(forms.ModelForm):
             owner.save()
 
         return owner
+
+    # Validação para não aceitar data futura
+    def clean_birth_date(self):
+        birth_date = self.cleaned_data.get('birth_date')
+        if birth_date and birth_date > date.today():
+            raise ValidationError("A data de nascimento não pode ser no futuro!")
+        return birth_date
