@@ -3,6 +3,9 @@ body {
     background-color: #f8f9fa; /* Uma cor de fundo de fallback */
     min-height: 100vh;
     position: relative;
+
+    /* ****** MUDANÇA PARA A FONTE NUNITO SANS (2/2) ****** */
+    font-family: 'Nunito Sans', sans-serif;
 }
 
 /* Pseudo-elemento para o fundo com imagem */

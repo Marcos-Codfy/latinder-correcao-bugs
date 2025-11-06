@@ -73,6 +73,9 @@ class PetCreateView(LoginRequiredMixin, CreateView):
         return reverse_lazy('pet_detail', kwargs={'pk': self.object.pk})
     
 # ****** VIEW MODIFICADA (MELHORIA DE FLUXO 3) ******
+# (Mantenha todas as suas importações no topo do arquivo)
+# ...
+
 class PetDetailView(DetailView):
     model = Pet
     template_name = 'pet_detail.html'
@@ -97,22 +100,37 @@ class PetDetailView(DetailView):
         
         return context
 
+    # ****** ESTE É O MÉTODO CORRIGIDO ******
     # Processa o upload de fotos via POST
     def post(self, request, *args, **kwargs):
-        self.object = self.get_object()
+        self.object = self.get_object() # Pega o objeto Pet
         
         # Checagem de segurança: Só o dono pode postar fotos
         if self.object.owner != self.request.user.owner:
-            # Se um não-dono tentar postar, apenas recarregue a página
             return HttpResponseRedirect(self.request.path_info) 
             
         form = PetPhotoForm(request.POST, request.FILES)
+        
+        # --- NOVA LÓGICA DE VERIFICAÇÃO ---
+        # 1. Verifica quantas fotos o pet tem ANTES de salvar a nova
+        photo_count_before_save = self.object.petphoto_set.count()
+        # --- FIM DA NOVA LÓGICA ---
+            
         if form.is_valid():
             photo = form.save(commit=False)
             photo.pet = self.object
             photo.save()
-            # Envia o usuário direto para a diversão!
-            return HttpResponseRedirect(reverse_lazy('swipe'))
+
+            # --- NOVA LÓGICA DE REDIRECIONAMENTO ---
+            # 2. Decide para onde ir
+            if photo_count_before_save == 0:
+                # Se era 0, esta foi a 1ª foto (onboarding). Vá para o swipe.
+                return HttpResponseRedirect(reverse_lazy('swipe'))
+            else:
+                # Se já tinha fotos, apenas recarregue a página para ver a nova foto.
+                return HttpResponseRedirect(self.request.path_info)
+            # --- FIM DA NOVA LÓGICA ---
+
         else:
             context = self.get_context_data()
             context['photo_form'] = form
