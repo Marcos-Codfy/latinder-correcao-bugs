@@ -76,9 +76,6 @@
             justify-content: center;
             gap: 20px;
             margin-top: -120px;
-
-            /* ****** CORREÇÃO DO Z-INDEX ****** */
-            /* Isso coloca os botões NA FRENTE dos cards */
             position: relative;
             z-index: 11;
         }
@@ -129,8 +126,13 @@
     <div class="col-md-8 col-lg-6">
         {% csrf_token %}
         
+        <div class="end-message glass-card" id="endMessage" style="display: none;">
+            <h4>Fim da Fila!</h4>
+            <p class="lead">Você já viu todos os pets disponíveis por enquanto. Volte mais tarde para ver novos perfis!</p>
+        </div>
+        
         {% if pets_to_swipe %}
-            <div class="swipe-container">
+            <div class="swipe-container" id="swipeContainer">
                 <div class="card-stack" id="cardStack">
                     {% for pet in pets_to_swipe %}
                         <div class="pet-card" data-pet-id="{{ pet.id }}">
@@ -169,11 +171,7 @@
             </div>
         {% endif %}
         
-        <div class="end-message glass-card" id="endMessage" style="display: none;">
-            <h4>Fim da Fila!</h4>
-            <p class="lead">Você já viu todos os pets disponíveis por enquanto. Volte mais tarde para ver novos perfis!</p>
         </div>
-    </div>
 </div>
 {% endblock %}
 
@@ -186,8 +184,9 @@
             const cardStack = document.getElementById('cardStack');
             const endMessage = document.getElementById('endMessage');
             let cards = Array.from(document.querySelectorAll('.pet-card'));
-            
             const swipeButtons = document.getElementById('swipeButtons');
+
+            const swipeContainer = document.getElementById('swipeContainer');
             
             // ----------------------------------------------------
             // FUNÇÕES DE AÇÃO
@@ -234,9 +233,9 @@
                     cards = cards.filter(c => c !== card);
                     
                     if (cards.length === 0) {
-                        cardStack.style.display = 'none';
-                        endMessage.style.display = 'block';
+                        if (swipeContainer) swipeContainer.style.display = 'none';
                         
+                        endMessage.style.display = 'block';
                         if (swipeButtons) swipeButtons.style.display = 'none'; 
                         
                     } else {
