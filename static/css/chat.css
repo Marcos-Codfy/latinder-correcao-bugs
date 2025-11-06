@@ -1,0 +1,140 @@
+/* Estilo do container de chat */
+.chat-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+/* Efeito de Vidro */
+.chat-container-glass {
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    border-radius: 15px;
+    overflow: hidden; 
+}
+
+/* Cabeçalho: Usa o NOVO gradiente vibrante */
+.chat-header {
+    /* ****** MUDANÇA DE GRADIENTE 1/3 ****** */
+    background: linear-gradient(135deg, #8E44AD 0%, #667eea 100%);
+    color: white;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    border-radius: 0; 
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.chat-header img {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid white;
+}
+
+/* Área de Mensagens: Fundo transparente */
+.messages-area {
+    background: transparent;
+    height: 500px;
+    overflow-y: auto;
+    padding: 20px;
+    border-left: none;
+    border-right: none;
+}
+
+/* Estilo das mensagens */
+.message {
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+}
+
+.message.mine {
+    align-items: flex-end;
+}
+
+.message.theirs {
+    align-items: flex-start;
+}
+
+.message-bubble {
+    max-width: 70%;
+    padding: 10px 15px;
+    border-radius: 18px;
+    word-wrap: break-word;
+}
+
+/* Bolha "Minha": Usa o NOVO gradiente vibrante */
+.message.mine .message-bubble {
+    /* ****** MUDANÇA DE GRADIENTE 2/3 ****** */
+    background: linear-gradient(135deg, #8E44AD 0%, #667eea 100%);
+    color: white;
+    border-bottom-right-radius: 4px;
+}
+
+/* Bolha "Deles": Fundo de vidro */
+.message.theirs .message-bubble {
+    background: rgba(255, 255, 255, 0.3); 
+    color: #333;
+    border-bottom-left-radius: 4px;
+}
+
+.message-time {
+    font-size: 0.75rem;
+    color: #f1f1f1; 
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.4); 
+    margin-top: 4px;
+    padding: 0 5px;
+}
+
+/* Área de Input: Fundo transparente */
+.chat-input-area {
+    background: transparent;
+    padding: 20px;
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 0;
+}
+
+.chat-input-area form {
+    display: flex;
+    gap: 10px;
+}
+
+/* Input: Fundo de vidro */
+.chat-input-area input {
+    flex: 1;
+    border-radius: 25px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    padding: 10px 20px;
+    background: rgba(255, 255, 255, 0.3);
+    color: #333;
+}
+.chat-input-area input::placeholder {
+    color: #555;
+}
+
+/* Botão Enviar: Usa o NOVO gradiente vibrante */
+.chat-input-area button {
+    border-radius: 25px;
+    padding: 10px 25px;
+    /* ****** MUDANÇA DE GRADIENTE 3/3 ****** */
+    background: linear-gradient(135deg, #8E44AD 0%, #667eea 100%);
+    border: none;
+    color: white;
+    font-weight: 600;
+}
+
+.chat-input-area button:hover {
+    opacity: 0.9;
+    transform: scale(1.02);
+}
+
+/* Scroll suave */
+.messages-area {
+    scroll-behavior: smooth;
+}
