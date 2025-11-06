@@ -129,7 +129,6 @@
                 <div class="card-stack" id="cardStack">
                     {% for pet in pets_to_swipe %}
                         <div class="pet-card" data-pet-id="{{ pet.id }}">
-                            <!-- Overlays de Like/Nope -->
                             <div class="card-overlay like">❤️</div>
                             <div class="card-overlay nope">❌</div>
                             
@@ -154,7 +153,6 @@
                 </div>
             </div>
             
-            <!-- Botões de ação -->
             <div class="swipe-buttons">
                 <button class="btn-swipe btn-nope" id="btnNope">X</button>
                 <button class="btn-swipe btn-like" id="btnLike">🤍</button>
@@ -166,7 +164,6 @@
             </div>
         {% endif %}
         
-        <!-- Mensagem de fim (oculta inicialmente) -->
         <div class="end-message glass-card" id="endMessage" style="display: none;">
             <h4>Fim da Fila!</h4>
             <p class="lead">Você já viu todos os pets disponíveis por enquanto. Volte mais tarde para ver novos perfis!</p>
@@ -185,6 +182,10 @@
             const endMessage = document.getElementById('endMessage');
             let cards = Array.from(document.querySelectorAll('.pet-card'));
             
+            // ----------------------------------------------------
+            // FUNÇÕES DE AÇÃO
+            // ----------------------------------------------------
+
             // Envia a ação de like/pass para o backend Django
             function sendSwipeAction(petId, liked) {
                 fetch('/api/swipe/', {
@@ -201,8 +202,6 @@
                 .then(response => response.ok ? response.json() : Promise.reject(response.status))
                 .then(data => {
                     console.log('Swipe registrado:', liked ? 'Match' : 'Pass');
-        
-                    // Verifica se houve match
                     if (data.match) {
                         alert('Você tem um novo match! 💕');
                     }
@@ -214,95 +213,89 @@
             function removeCard(card, liked) {
                 const petId = card.dataset.petId;
                 
-                // Só envia para o backend se for um pet válido
                 if (petId) {
                     sendSwipeAction(petId, liked);
                 }
                 
-                // Animação de saída
                 card.classList.add('animating');
                 const direction = liked ? 1 : -1;
                 card.style.transform = `translateX(${direction * 150}%) rotate(${direction * 30}deg)`;
                 card.style.opacity = '0';
                 
-                // Remove do DOM após animação
                 setTimeout(() => {
                     card.remove();
                     cards = cards.filter(c => c !== card);
                     
-                    // Verifica se acabaram os cards
                     if (cards.length === 0) {
                         cardStack.style.display = 'none';
                         endMessage.style.display = 'block';
+                    } else {
+                        // **CORREÇÃO:** Prepara o próximo card para "arrastar"
+                        setupHammer(cards[0]); 
                     }
                 }, 500);
             }
-            
-            // Configurar Hammer.js para cada card
-            cards.forEach((card, index) => {
-                if (index > 0) return; // Só o primeiro card é interativo
+
+            // Função de 'arrastar' (Hammer.js)
+            function setupHammer(card) {
+                // Verifica se a biblioteca Hammer foi carregada
+                if (typeof Hammer === 'undefined') {
+                    console.warn("Hammer.js não foi carregado. A funcionalidade de 'arrastar' está desabilitada.");
+                    return; // Não faz nada se a biblioteca falhou
+                }
+
+                if (!card) return; 
                 
                 const hammer = new Hammer(card);
                 const likeOverlay = card.querySelector('.card-overlay.like');
                 const nopeOverlay = card.querySelector('.card-overlay.nope');
-                
                 let isPanning = false;
-                
-                // Configurar pan (arrastar)
+
                 hammer.get('pan').set({ direction: Hammer.DIRECTION_ALL, threshold: 0 });
-                
+
                 hammer.on('panstart', function() {
                     isPanning = true;
                     card.style.transition = 'none';
                 });
-                
+
                 hammer.on('panmove', function(event) {
                     if (!isPanning) return;
-                    
-                    const xMulti = event.deltaX * 0.03;
-                    const yMulti = event.deltaY / 80;
-                    const rotate = xMulti * 10;
-                    
+                    const rotate = event.deltaX * 0.03 * 10;
                     card.style.transform = `translateX(calc(-50% + ${event.deltaX}px)) translateY(${event.deltaY}px) rotate(${rotate}deg)`;
                     
-                    // Mostrar overlays baseado na direção
                     const opacity = Math.abs(event.deltaX) / 100;
                     if (event.deltaX > 0) {
-                        // Arrastando para DIREITA = LIKE
                         likeOverlay.style.opacity = Math.min(opacity, 1);
                         nopeOverlay.style.opacity = 0;
                     } else {
-                        // Arrastando para ESQUERDA = NOPE
                         nopeOverlay.style.opacity = Math.min(opacity, 1);
                         likeOverlay.style.opacity = 0;
                     }
                 });
-                
+
                 hammer.on('panend', function(event) {
                     if (!isPanning) return;
                     isPanning = false;
-                    
                     card.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
                     
-                    // Threshold para decidir se foi um swipe válido
                     const threshold = 120;
-                    
                     if (event.deltaX > threshold) {
-                        // LIKE - swipe para DIREITA
                         removeCard(card, true);
                     } else if (event.deltaX < -threshold) {
-                        // PASS - swipe para ESQUERDA
                         removeCard(card, false);
                     } else {
-                        // Não passou do threshold, volta para posição original
                         card.style.transform = 'translateX(-50%)';
                         likeOverlay.style.opacity = 0;
                         nopeOverlay.style.opacity = 0;
                     }
                 });
-            });
-            
-            // Botões manuais
+            }
+
+            // ----------------------------------------------------
+            // INICIALIZAÇÃO
+            // ----------------------------------------------------
+
+            // **CORREÇÃO:** Ativa os botões primeiro, para garantir que funcionem
             document.getElementById('btnLike')?.addEventListener('click', function() {
                 const topCard = cards[0];
                 if (topCard) {
@@ -320,19 +313,10 @@
                     setTimeout(() => removeCard(topCard, false), 200);
                 }
             });
-            
-            // Reconfigurar Hammer.js após remover um card
-            const originalRemoveCard = removeCard;
-            removeCard = function(card, liked) {
-                originalRemoveCard(card, liked);
-                setTimeout(() => {
-                    if (cards.length > 0) {
-                        const newTopCard = cards[0];
-                        const hammer = new Hammer(newTopCard);
-                        // ... (repetir configuração do Hammer)
-                    }
-                }, 100);
-            };
+
+            // Tenta ativar o 'arrastar' (drag) no primeiro card
+            setupHammer(cards[0]);
+
         });
     </script>
 {% endblock %}
