@@ -82,7 +82,7 @@ class MatchesView(LoginRequiredMixin, TemplateView):
     template_name = 'matches.html'
     
     def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
+        context = super().get_context_data(self, **kwargs)
         
         try:
             user_pet = self.request.user.owner.pet_set.first()
@@ -174,7 +174,11 @@ class SendMessageView(LoginRequiredMixin, View):
                     'id': message.id,
                     'content': message.content,
                     'sender': message.sender.user.username,
-                    'timestamp': message.timestamp.strftime('%H:%M'),
+                    
+                    # ***** MUDANÇA 1/2 *****
+                    # Trocado de .strftime('%H:%M') para .isoformat()
+                    'timestamp': message.timestamp.isoformat(),
+                    
                     'is_mine': True
                 }
             })
@@ -214,7 +218,11 @@ class GetNewMessagesView(LoginRequiredMixin, View):
                 'id': msg.id,
                 'content': msg.content,
                 'sender': msg.sender.user.username,
-                'timestamp': msg.timestamp.strftime('%H:%M'),
+                
+                # ***** MUDANÇA 2/2 *****
+                # Trocado de .strftime('%H:%M') para .isoformat()
+                'timestamp': msg.timestamp.isoformat(),
+                
                 'is_mine': msg.sender == request.user.owner
             } for msg in new_messages]
             

@@ -33,12 +33,11 @@
                 <div class="message-bubble">
                     {{ message.content }}
                 </div>
-                <div class="message-time">
-                    {{ message.timestamp|date:"H:i" }}
-                </div>
+                <div class="message-time" data-timestamp="{{ message.timestamp.isoformat }}">
+                    </div>
             </div>
         {% empty %}
-            <div class="text-center text-muted mt-5" style="color: #eee !important; text-shadow: 1px 1px 2px rgba(0,0,0,0.4);">
+            <div id="emptyChatMessage" class="text-center text-muted mt-5" style="color: #eee !important; text-shadow: 1px 1px 2px rgba(0,0,0,0.4);">
                 <p>Nenhuma mensagem ainda. Comece a conversa! 💬</p>
             </div>
         {% endfor %}
