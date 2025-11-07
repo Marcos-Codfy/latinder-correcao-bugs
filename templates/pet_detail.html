@@ -7,7 +7,11 @@
 
         {% if not is_mine %}
         <div class="glass-card mb-4">
-            <h4 class="mb-3">Dono(a) do {{ pet.name }}</h4>
+            
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="mb-0">Dono(a) do {{ pet.name }}</h4>
+                <a href="{% url 'matches' %}" class="btn btn-outline-primary btn-sm">&larr; Voltar aos Matches</a>
+            </div>
             <div class="d-flex align-items-center">
                 {% if pet_owner.profile_picture %}
                     <img src="{{ pet_owner.profile_picture.url }}" alt="Foto de {{ pet_owner.user.get_full_name }}" class="rounded-circle me-3" style="width: 80px; height: 80px; object-fit: cover;">
